@@ -593,6 +593,7 @@ function renderOverview() {
   const monthsElapsed = fy < new Date().getFullYear() ? 12 :
     fy > new Date().getFullYear() ? 1 : Math.max(1, new Date().getMonth());
   const monthlyRun = ytdTotal / monthsElapsed;
+  const ppMonthly = subs.filter(s => s.allocation === "per_property").reduce((t, x) => t + (ytdFor(x) || 0), 0) / monthsElapsed / props;
   const prorated = budgetTotal * (monthsElapsed / 12);
   const vsBudget = prorated > 0 ? (ytdTotal / prorated - 1) * 100 : 0;
 
@@ -607,8 +608,8 @@ function renderOverview() {
   html += '<div class="grid tiles">' +
     tile(fy + " tech spend (YTD)", fmt$(ytdTotal), deltaTxt(vsBudget), true) +
     tile("Annual budget", fmt$(budgetTotal), monthsElapsed + " mo elapsed" + (live ? "" : " · from seed sheet")) +
-    tile("Monthly run rate", fmt$(monthlyRun), "avg over " + monthsElapsed + " months") +
-    tile("Cost per property / mo", fmt$(monthlyRun / props, 2), props + " units") +
+    tile("Average monthly costs", fmt$(monthlyRun), "avg over " + monthsElapsed + " months") +
+    tile("Per property costs / mo", fmt$(ppMonthly, 2), "property-scaling tools · " + props + " units") +
     tile("Active subscriptions", String(subs.filter(s => s.status === "active").length),
       S.subs.filter(s => s.status === "under_review").length + " under review") +
     "</div>";
@@ -681,7 +682,7 @@ function deltaTxt(pct) {
 <script>
 "use strict";
 /* ================= REGISTER ================= */
-const DEPTS = ["Operations","Marketing","Finance","IT & Security","Revenue Management","Guest Experience","HR & Payroll","Productivity","Communications","AI Tools","Admin"];
+const DEPTS = ["Guest Experience","Operations","Revenue","Accounting","Productivity","Marketing"];
 const ALLOCS = { per_property: "Per property", per_user: "Per user", company_wide: "Company-wide" };
 const FREQS = ["monthly","annual","usage","unknown"];
 const STATUSES = ["active","under_review","cancelled"];
@@ -1207,9 +1208,9 @@ function renderAnalytics() {
   // KPI tiles
   html += '<div class="grid tiles">' +
     tile("Total tech cost / year", fmt$(total), basisLabel, true) +
-    tile("Per property / month", fmt$(total / 12 / props, 2), "fully loaded · all tech ÷ " + props + " units") +
-    tile("Per employee / month", fmt$(total / 12 / users, 2), "fully loaded · all tech ÷ " + users + " people") +
-    tile("Per property (direct)", fmt$(byAlloc.per_property / 12 / props, 2), "/mo · property-scaling tools only") +
+    tile("Per property costs / month", fmt$(byAlloc.per_property / 12 / props, 2), "property-scaling tools ÷ " + props + " units") +
+    tile("Per employee costs / month", fmt$(byAlloc.per_user / 12 / users, 2), "per-user tools ÷ " + users + " employees") +
+    tile("Company-wide costs / month", fmt$(byAlloc.company_wide / 12), "fixed overhead across the company") +
     "</div>";
 
   // Allocation summary
@@ -1219,7 +1220,7 @@ function renderAnalytics() {
     allocRow("Per user", byAlloc.per_user, total, fmt$(byAlloc.per_user / 12 / users, 2) + " avg per employee / mo") +
     allocRow("Company-wide", byAlloc.company_wide, total, fmt$(byAlloc.company_wide / 12 / users, 2) + " burden per employee / mo") +
     '<tr><td><b>Total</b></td><td class="num"><b>' + fmt$(total) + '</b></td><td class="num"><b>' + fmt$(total / 12) + '</b></td><td class="num">100%</td><td class="muted">' +
-    fmt$(total / 12 / props, 2) + "/property/mo · " + fmt$(total / 12 / users, 2) + "/employee/mo</td></tr>" +
+    "fully loaded: " + fmt$(total / 12 / props, 2) + "/property/mo · " + fmt$(total / 12 / users, 2) + "/employee/mo</td></tr>" +
     "</tbody></table></div></div>";
 
   // Department breakdown chart + category table
