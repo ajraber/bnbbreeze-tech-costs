@@ -158,6 +158,8 @@
   .sev.warning { color: var(--status-serious); } .sev.warning::before { content: "⚠️"; }
   .sev.info { color: var(--accent); } .sev.info::before { content: "ℹ️"; }
   .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar.reg-sticky { position: sticky; top: 55px; z-index: 25; background: var(--page); padding: 12px 0 10px; margin: -12px 0 8px; }
+  .reg-table table.data thead th { position: sticky; top: 116px; background: var(--card-top); z-index: 20; box-shadow: 0 1px 0 var(--grid); }
   .seg { display: inline-flex; gap: 2px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
   .seg button { border: 0; background: transparent; color: var(--text-secondary); font: inherit; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
   .seg button.on { background: var(--text-primary); color: var(--surface-1); font-weight: 550; }
@@ -527,12 +529,12 @@ function renderOverview() {
   const props = numSetting("property_count", 176);
   const users = numSetting("user_count", 15);
   const flags = openFlags();
-  // Prorate against CALENDAR months elapsed in the fiscal year (not # of uploads)
   const fy = numSetting("fiscal_year", new Date().getFullYear());
   const monthsElapsed = fy < new Date().getFullYear() ? 12 :
     fy > new Date().getFullYear() ? 1 : Math.max(1, new Date().getMonth());
   const monthlyRun = ytdTotal / monthsElapsed;
-  const ppMonthly = subs.filter(s => s.allocation === "per_property").reduce((t, x) => t + (ytdFor(x) || 0), 0) / monthsElapsed / props;
+  const byA = { per_property: 0, per_user: 0, company_wide: 0 };
+  subs.forEach(s => byA[s.allocation] += (ytdFor(s) || 0));
   const prorated = budgetTotal * (monthsElapsed / 12);
   const vsBudget = prorated > 0 ? (ytdTotal / prorated - 1) * 100 : 0;
 
@@ -546,44 +548,37 @@ function renderOverview() {
   }
   html += '<div class="grid tiles">' +
     tile(fy + " tech spend (YTD)", fmt$(ytdTotal), deltaTxt(vsBudget), true) +
-    tile("Annual budget", fmt$(budgetTotal), monthsElapsed + " mo elapsed" + (live ? "" : " · from seed sheet")) +
+    tile("Total yearly tech costs", fmt$(monthlyRun * 12), "annualized from " + monthsElapsed + " months of actuals") +
     tile("Average monthly costs", fmt$(monthlyRun), "avg over " + monthsElapsed + " months") +
-    tile("Per property costs / mo", fmt$(ppMonthly, 2), "property-scaling tools · " + props + " units") +
+    tile("Per property costs / mo", fmt$(byA.per_property / monthsElapsed / props, 2), "property-scaling tools · " + props + " units") +
+    tile("Per employee costs / mo", fmt$(byA.per_user / monthsElapsed / users, 2), "per-user tools · " + users + " employees") +
+    tile("Company-wide costs / mo", fmt$(byA.company_wide / monthsElapsed), "fixed overhead") +
     tile("Active subscriptions", String(subs.filter(s => s.status === "active").length),
       S.subs.filter(s => s.status === "under_review").length + " under review") +
     "</div>";
 
+  const totalAnnual = monthlyRun * 12;
+  const ann = k => byA[k] / monthsElapsed * 12;
+  html += '<div class="card" style="margin-bottom:16px"><h3>Where the money goes</h3><p class="sub">YTD actuals annualized (' + monthsElapsed + ' months → 12)</p>' +
+    '<div style="overflow-x:auto"><table class="data"><thead><tr><th>Allocation</th><th class="num">Annual</th><th class="num">Monthly</th><th class="num">% of total</th><th>Unit economics</th></tr></thead><tbody>' +
+    allocRow("Per property", ann("per_property"), totalAnnual, fmt$(ann("per_property") / 12 / props, 2) + " per property / mo") +
+    allocRow("Per user", ann("per_user"), totalAnnual, fmt$(ann("per_user") / 12 / users, 2) + " avg per employee / mo") +
+    allocRow("Company-wide", ann("company_wide"), totalAnnual, fmt$(ann("company_wide") / 12 / users, 2) + " burden per employee / mo") +
+    '<tr><td><b>Total</b></td><td class="num"><b>' + fmt$(totalAnnual) + '</b></td><td class="num"><b>' + fmt$(monthlyRun) + '</b></td><td class="num">100%</td><td class="muted">fully loaded: ' +
+    fmt$(monthlyRun / props, 2) + "/property/mo · " + fmt$(monthlyRun / users, 2) + "/employee/mo</td></tr>" +
+    "</tbody></table></div></div>";
+
   html += '<div class="grid charts">';
-  html += '<div class="card"><h3>Spend by department</h3><p class="sub">2026 YTD actuals</p><div class="chart-wrap" id="ovDept"></div></div>';
-  html += '<div class="card"><h3>Budget vs. actual — top subscriptions</h3><p class="sub">2026 YTD vs. prorated budget (' + monthsElapsed + '/12 of annual)</p><div id="ovTopLegend"></div><div class="chart-wrap" id="ovTop"></div></div>';
   html += '<div class="card"><h3>Allocation</h3><p class="sub">How costs scale — annual budget + new unbudgeted spend</p><div id="ovAllocLegend"></div><div class="chart-wrap" id="ovAlloc"></div>' +
     '<div class="small muted" id="ovAllocNote"></div></div>';
   html += '<div class="card"><h3>Monthly spend trend</h3><p class="sub" id="ovTrendSub"></p><div class="chart-wrap" id="ovTrend"></div></div>';
+  html += '<div class="card"><h3>Spend by department</h3><p class="sub">2026 YTD actuals</p><div class="chart-wrap" id="ovDept"></div></div>';
   html += "</div>";
   v.innerHTML = html;
 
-  // Dept chart — one series, one color (slot 1)
-  const deptMap = {};
-  subs.forEach(s => { const y = ytdFor(s) || 0; deptMap[s.department] = (deptMap[s.department] || 0) + y; });
-  const deptRows = Object.entries(deptMap).filter(([, val]) => val > 0).sort((a, b) => b[1] - a[1]);
-  const top6 = deptRows.slice(0, 6);
-  const other = deptRows.slice(6).reduce((s, [, val]) => s + val, 0);
-  const rows = top6.map(([k, val]) => ({ label: k, values: [val] }));
-  if (other > 0) rows.push({ label: "Other", values: [other] });
-  hBars(el("ovDept"), rows, [{ name: "YTD spend", color: "var(--series-1)" }], { labelW: 150 });
-
-  // Top subscriptions: budget (prorated) vs actual — 2 series with legend
-  const topSubs = subs.map(s => ({ s, y: ytdFor(s) || 0 })).sort((a, b) => b.y - a.y).slice(0, 8);
-  const twoSeries = [{ name: "YTD actual", color: "var(--series-1)" }, { name: "Prorated budget", color: "var(--series-2)" }];
-  el("ovTopLegend").innerHTML = legendHTML(twoSeries);
-  hBars(el("ovTop"), topSubs.map(t => ({
-    label: t.s.name, values: [t.y, (Number(t.s.budget_2026) || 0) * monthsElapsed / 12]
-  })), twoSeries, { barH: 12, groupPad: 8, labelSeries: -1 });
-
-  // Allocation stacked bar
   const allocMap = { per_property: 0, per_user: 0, company_wide: 0 };
   subs.forEach(s => {
-    const basis = Number(s.budget_2026) || ytdFor(s) || 0;   // budget where set, else YTD (new subs)
+    const basis = Number(s.budget_2026) || ytdFor(s) || 0;
     allocMap[s.allocation] += basis;
   });
   const allocParts = [
@@ -595,7 +590,6 @@ function renderOverview() {
   stackBar(el("ovAlloc"), allocParts);
   el("ovAllocNote").textContent = "Per property: " + fmt$(allocMap.per_property / props, 0) + "/unit/yr · Per user: " + fmt$(allocMap.per_user / users, 0) + "/person/yr (settings: " + props + " units, " + users + " users)";
 
-  // Trend
   if (live) {
     const byMonth = {};
     act.forEach(a => { byMonth[a.period_month] = (byMonth[a.period_month] || 0) + Number(a.amount); });
@@ -606,6 +600,14 @@ function renderOverview() {
     el("ovTrendSub").textContent = "";
     el("ovTrend").innerHTML = '<div class="empty">No monthly uploads committed yet.<br>The trend line starts with your first QuickBooks upload in the <b>Monthly Audit</b> tab.</div>';
   }
+
+  const deptMap = {};
+  subs.forEach(s => { const y = ytdFor(s) || 0; deptMap[s.department] = (deptMap[s.department] || 0) + y; });
+  const deptRows = Object.entries(deptMap).filter(([, val]) => val > 0).sort((a, b) => b[1] - a[1]);
+  const top6 = deptRows.slice(0, 6).map(([k, val]) => ({ label: k, values: [val] }));
+  const other = deptRows.slice(6).reduce((sum, [, val]) => sum + val, 0);
+  if (other > 0) top6.push({ label: "Other", values: [other] });
+  hBars(el("ovDept"), top6, [{ name: "YTD spend", color: "var(--series-1)" }], { labelW: 150 });
 }
 function tile(label, value, delta, hero) {
   return '<div class="card tile' + (hero ? " span2" : "") + '"><div class="label">' + esc(label) + '</div><div class="value' + (hero ? " hero" : "") + '">' + esc(value) + "</div>" +
@@ -642,7 +644,7 @@ function renderRegister() {
     if (typeof av === "string") return av.localeCompare(bv) * dir;
     return ((Number(av) || 0) - (Number(bv) || 0)) * dir;
   });
-  let html = '<div class="toolbar">' +
+  let html = '<div class="toolbar reg-sticky">' +
     '<input type="search" id="regQ" placeholder="Search name or code…" value="' + esc(f.q) + '">' +
     sel("regDept", ["", ...DEPTS], f.dept, "All departments") +
     sel("regAlloc", ["", ...Object.keys(ALLOCS)], f.alloc, "All allocations", k => ALLOCS[k]) +
@@ -650,10 +652,10 @@ function renderRegister() {
     '<button class="btn primary" id="addSubBtn">+ Add subscription</button>' +
     '<button class="btn" id="regExport">Export CSV</button>' +
     "</div>";
-  html += '<div class="card" style="padding:6px 8px;overflow-x:auto"><table class="data"><thead><tr>' +
+  html += '<div class="card reg-table" style="padding:6px 8px"><table class="data"><thead><tr>' +
     th("qb_account_code", "Code") + th("name", "Name") + th("department", "Dept") + th("category", "Category") +
     th("allocation", "Allocation") + th("billing_frequency", "Billing") + th("status", "Status") +
-    th("budget_2026", "2026 budget", true) + th("monthly", "Monthly cost", true) + th("ytd", "2026 YTD", true) + th("actual_2025", "2025 actual", true) +
+    th("monthly", "Monthly cost", true) + th("ytd", "2026 YTD", true) + th("budget_2026", "2026 budget", true) + th("actual_2025", "2025 actual", true) +
     "</tr></thead><tbody>";
   list.forEach(s => {
     const y = ytdFor(s);
@@ -665,10 +667,10 @@ function renderRegister() {
       (s.allocation === "per_user" ? ' <span class="muted small">' + (s.seat_count != null && s.seat_count > 0 ? s.seat_count + " seats" : "co. count") + "</span>" : "") + "</td>" +
       "<td>" + esc(s.billing_frequency) + "</td>" +
       '<td><span class="badge ' + s.status + '">' + s.status.replace("_", " ") + "</span></td>" +
-      '<td class="num">' + fmt$(s.budget_2026 != null ? Number(s.budget_2026) : null) + "</td>" +
       '<td class="num"><b>' + fmt$(s.status === "cancelled" ? null : monthlyCostOf(s), 2) + "</b>" +
       (s.status !== "cancelled" && s.billing_frequency === "annual" ? ' <span class="muted small" title="annual charge ÷ 12">an/12</span>' : "") + "</td>" +
       '<td class="num">' + fmt$(y) + (pct != null ? ' <span class="muted small">' + pct.toFixed(0) + "%</span>" : "") + "</td>" +
+      '<td class="num">' + fmt$(s.budget_2026 != null ? Number(s.budget_2026) : null) + "</td>" +
       '<td class="num muted">' + fmt$(s.actual_2025 != null ? Number(s.actual_2025) : null) + "</td></tr>";
   });
   html += "</tbody></table></div>";
@@ -1144,36 +1146,6 @@ function renderAnalytics() {
     '<button data-b="budget" class="' + (S.basis === "budget" ? "on" : "") + '">2026 budget</button></span>' +
     '<span class="small muted">Basis: ' + basisLabel + " · " + props + " properties · " + users + " employees (Settings)</span></div>";
 
-  // KPI tiles
-  html += '<div class="grid tiles">' +
-    tile("Total tech cost / year", fmt$(total), basisLabel, true) +
-    tile("Per property costs / month", fmt$(byAlloc.per_property / 12 / props, 2), "property-scaling tools ÷ " + props + " units") +
-    tile("Per employee costs / month", fmt$(byAlloc.per_user / 12 / users, 2), "per-user tools ÷ " + users + " employees") +
-    tile("Company-wide costs / month", fmt$(byAlloc.company_wide / 12), "fixed overhead across the company") +
-    "</div>";
-
-  // Allocation summary
-  html += '<div class="card" style="margin-bottom:16px"><h3>Where the money goes</h3><p class="sub">' + esc(basisLabel) + '</p>' +
-    '<div style="overflow-x:auto"><table class="data"><thead><tr><th>Allocation</th><th class="num">Annual</th><th class="num">Monthly</th><th class="num">% of total</th><th>Unit economics</th></tr></thead><tbody>' +
-    allocRow("Per property", byAlloc.per_property, total, fmt$(byAlloc.per_property / 12 / props, 2) + " per property / mo") +
-    allocRow("Per user", byAlloc.per_user, total, fmt$(byAlloc.per_user / 12 / users, 2) + " avg per employee / mo") +
-    allocRow("Company-wide", byAlloc.company_wide, total, fmt$(byAlloc.company_wide / 12 / users, 2) + " burden per employee / mo") +
-    '<tr><td><b>Total</b></td><td class="num"><b>' + fmt$(total) + '</b></td><td class="num"><b>' + fmt$(total / 12) + '</b></td><td class="num">100%</td><td class="muted">' +
-    "fully loaded: " + fmt$(total / 12 / props, 2) + "/property/mo · " + fmt$(total / 12 / users, 2) + "/employee/mo</td></tr>" +
-    "</tbody></table></div></div>";
-
-  // Department breakdown chart + category table
-  const deptMap = {};
-  withCost.forEach(x => deptMap[x.s.department] = (deptMap[x.s.department] || 0) + x.annual);
-  const catMap = {};
-  withCost.forEach(x => { const k = x.s.category; (catMap[k] = catMap[k] || { dept: x.s.department, v: 0 }).v += x.annual; });
-  html += '<div class="grid charts" style="margin-bottom:16px">' +
-    '<div class="card"><h3>By department</h3><p class="sub">annual, ' + (S.basis === "budget" ? "budget" : "annualized") + '</p><div class="chart-wrap" id="anDept"></div></div>' +
-    '<div class="card"><h3>By category</h3><p class="sub">top 10</p><div style="overflow-x:auto"><table class="data"><thead><tr><th>Category</th><th>Dept</th><th class="num">Annual</th><th class="num">/mo</th><th class="num">%</th></tr></thead><tbody>' +
-    Object.entries(catMap).sort((a, b) => b[1].v - a[1].v).slice(0, 10).map(([k, o]) =>
-      "<tr><td><b>" + esc(k) + "</b></td><td class='muted'>" + esc(o.dept) + '</td><td class="num">' + fmt$(o.v) + '</td><td class="num">' + fmt$(o.v / 12) + '</td><td class="num">' + (o.v / total * 100).toFixed(1) + "%</td></tr>").join("") +
-    "</tbody></table></div></div></div>";
-
   // Per-property breakdown
   const pp = withCost.filter(x => x.s.allocation === "per_property").sort((a, b) => b.annual - a.annual);
   html += '<div class="card" style="margin-bottom:16px"><h3>Per-property tools</h3>' +
@@ -1214,11 +1186,6 @@ function renderAnalytics() {
   v.innerHTML = html;
 
   // charts
-  const deptRows = Object.entries(deptMap).sort((a, b) => b[1] - a[1]);
-  const top6 = deptRows.slice(0, 6).map(([k, val]) => ({ label: k, values: [val] }));
-  const other = deptRows.slice(6).reduce((s, [, val]) => s + val, 0);
-  if (other > 0) top6.push({ label: "Other", values: [other] });
-  hBars(el("anDept"), top6, [{ name: "Annual cost", color: "var(--series-1)" }], { labelW: 150 });
   hBars(el("anProp"), pp.slice(0, 8).map(x => ({ label: x.s.name, values: [x.annual / 12 / props] })),
     [{ name: "$ / property / mo", color: "var(--series-1)" }], { labelW: 150 });
 
