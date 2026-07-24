@@ -348,6 +348,18 @@ function ytdFor(sub) {
 }
 function hasLiveActuals() { return committedActuals().length > 0; }
 function openFlags() { return S.flags.filter(f => f.status === "open" || f.status === "investigating"); }
+/* Monthly cost: annual-billed → annual ÷ 12; otherwise actual YTD ÷ months elapsed; fallback budget ÷ 12 */
+function monthlyCostOf(s) {
+  const me = monthsElapsedFY();
+  const y = ytdFor(s);
+  if (s.billing_frequency === "annual") {
+    if (y != null && y > 0) return y / 12;
+    return s.budget_2026 > 0 ? Number(s.budget_2026) / 12 : (y === 0 ? 0 : null);
+  }
+  if (y != null && y > 0) return y / me;
+  if (s.budget_2026 > 0) return Number(s.budget_2026) / 12;
+  return y === 0 ? 0 : null;
+}
 </script>
 <script>
 "use strict";
@@ -640,6 +652,7 @@ function renderRegister() {
   list = list.slice().sort((a, b) => {
     let av = a[col], bv = b[col];
     if (col === "ytd") { av = ytdFor(a) || 0; bv = ytdFor(b) || 0; }
+    if (col === "monthly") { av = monthlyCostOf(a) || 0; bv = monthlyCostOf(b) || 0; }
     if (typeof av === "string") return av.localeCompare(bv) * dir;
     return ((Number(av) || 0) - (Number(bv) || 0)) * dir;
   });
@@ -654,7 +667,7 @@ function renderRegister() {
   html += '<div class="card" style="padding:6px 8px;overflow-x:auto"><table class="data"><thead><tr>' +
     th("qb_account_code", "Code") + th("name", "Name") + th("department", "Dept") + th("category", "Category") +
     th("allocation", "Allocation") + th("billing_frequency", "Billing") + th("status", "Status") +
-    th("budget_2026", "2026 budget", true) + th("ytd", "2026 YTD", true) + th("actual_2025", "2025 actual", true) +
+    th("budget_2026", "2026 budget", true) + th("monthly", "Monthly cost", true) + th("ytd", "2026 YTD", true) + th("actual_2025", "2025 actual", true) +
     "</tr></thead><tbody>";
   list.forEach(s => {
     const y = ytdFor(s);
@@ -667,11 +680,14 @@ function renderRegister() {
       "<td>" + esc(s.billing_frequency) + "</td>" +
       '<td><span class="badge ' + s.status + '">' + s.status.replace("_", " ") + "</span></td>" +
       '<td class="num">' + fmt$(s.budget_2026 != null ? Number(s.budget_2026) : null) + "</td>" +
+      '<td class="num"><b>' + fmt$(s.status === "cancelled" ? null : monthlyCostOf(s), 2) + "</b>" +
+      (s.status !== "cancelled" && s.billing_frequency === "annual" ? ' <span class="muted small" title="annual charge ÷ 12">an/12</span>' : "") + "</td>" +
       '<td class="num">' + fmt$(y) + (pct != null ? ' <span class="muted small">' + pct.toFixed(0) + "%</span>" : "") + "</td>" +
       '<td class="num muted">' + fmt$(s.actual_2025 != null ? Number(s.actual_2025) : null) + "</td></tr>";
   });
   html += "</tbody></table></div>";
-  html += '<p class="small muted">' + list.length + " of " + S.subs.length + " subscriptions · click a row to edit · click a column header to sort</p>";
+  const monthlyTotal = list.filter(s => s.status !== "cancelled").reduce((t, s) => t + (monthlyCostOf(s) || 0), 0);
+  html += '<p class="small muted">' + list.length + " of " + S.subs.length + " subscriptions · combined monthly cost of listed: <b>" + fmt$(monthlyTotal, 2) + "</b> · click a row to edit · click a column header to sort</p>";
   v.innerHTML = html;
   el("regQ").addEventListener("input", e => { S.regFilter.q = e.target.value; renderRegister(); });
   el("regDept").addEventListener("change", e => { S.regFilter.dept = e.target.value; renderRegister(); });
@@ -769,8 +785,8 @@ async function logAct(action, detail) {
   try { await apiPost("tc_activity_log", { actor: S.actor || "dashboard user", action, detail }); } catch (e) { console.warn(e); }
 }
 function exportRegister() {
-  const cols = ["qb_account_code","name","department","category","allocation","seat_count","billing_frequency","status","owner_name","renewal_date","actual_2025","budget_2026","ytd_2026"];
-  const rows = S.subs.map(s => [s.qb_account_code, s.name, s.department, s.category, s.allocation, s.seat_count ?? "", s.billing_frequency, s.status, s.owner_name || "", s.renewal_date || "", s.actual_2025 ?? "", s.budget_2026 ?? "", ytdFor(s) ?? ""]);
+  const cols = ["qb_account_code","name","department","category","allocation","seat_count","billing_frequency","status","owner_name","renewal_date","actual_2025","budget_2026","monthly_cost","ytd_2026"];
+  const rows = S.subs.map(s => [s.qb_account_code, s.name, s.department, s.category, s.allocation, s.seat_count ?? "", s.billing_frequency, s.status, s.owner_name || "", s.renewal_date || "", s.actual_2025 ?? "", s.budget_2026 ?? "", s.status === "cancelled" ? "" : (monthlyCostOf(s) != null ? monthlyCostOf(s).toFixed(2) : ""), ytdFor(s) ?? ""]);
   downloadCSV("bnbbreeze-subscription-register.csv", cols, rows);
 }
 function downloadCSV(filename, cols, rows) {
