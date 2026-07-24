@@ -110,8 +110,10 @@
   .card .sub { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
   .tile .label { font-size: 12.5px; color: var(--text-secondary); }
   .tile .value { font-size: 26px; font-weight: 650; margin-top: 2px; letter-spacing: -0.01em; }
-  .tile .value.hero { font-size: 48px; line-height: 1.1; }
+  .tile .value.hero { font-size: clamp(26px, 8.5vw, 48px); line-height: 1.1; overflow-wrap: anywhere; }
   @media (min-width: 700px) { .tile.span2 { grid-column: span 2; } }
+  @media (max-width: 699px) { .tile.span2 { grid-column: 1 / -1; } }
+  .tile.span2 .yearly { display: block; font-size: 16px; font-weight: 650; color: #ffffff; margin: 3px 0 2px; }
   .tile .delta { font-size: 12px; margin-top: 3px; color: var(--text-secondary); }
   .tile .delta .up-bad { color: var(--status-critical); font-weight: 600; }
   .tile .delta .ok { color: var(--delta-good); font-weight: 600; }
@@ -547,7 +549,7 @@ function renderOverview() {
       '<button class="btn small" onclick="go(\'audit\')">Review now →</button></div>';
   }
   html += '<div class="grid tiles">' +
-    tile("Total cost per property / mo", fmt$(monthlyRun / props, 2), "all tech ÷ " + props + " properties", true) +
+    tile("Total cost per property / mo", fmt$(monthlyRun / props, 2), '<span class="yearly">' + fmt$(monthlyRun * 12 / props, 0) + " per property / yr</span>all tech ÷ " + props + " properties", true) +
     tile(fy + " tech spend (YTD)", fmt$(ytdTotal), deltaTxt(vsBudget)) +
     tile("Total yearly tech costs", fmt$(monthlyRun * 12), "annualized from " + monthsElapsed + " months of actuals") +
     tile("Average monthly costs", fmt$(monthlyRun), "avg over " + monthsElapsed + " months") +
