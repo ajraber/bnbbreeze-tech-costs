@@ -11,7 +11,7 @@
   :root {
     color-scheme: light;
     --surface-1: #fcfcfb;
-    --page: #f9f9f7;
+    --page: #f3f9fc;
     --text-primary: #0b0b0b;
     --text-secondary: #52514e;
     --muted: #898781;
@@ -19,9 +19,11 @@
     --baseline: #c3c2b7;
     --border: rgba(11,11,11,0.10);
     --brand: #00b0ec;
-    --header-bg: #142832;
-    --header-ink: #ffffff;
-    --header-ink-2: rgba(255,255,255,0.72);
+    --header-bg: #ffffff;
+    --header-ink: #0b0b0b;
+    --header-ink-2: #52514e;
+    --card-top: #ffffff;
+    --card-bottom: #e9f6fd;
     --accent-contrast: #ffffff;
     --series-1: #1e7fb0;
     --series-2: #eb6834;
@@ -49,6 +51,8 @@
       --baseline: #383835;
       --border: rgba(255,255,255,0.10);
       --brand: #00b0ec;
+      --card-top: #1d2126;
+      --card-bottom: #131e26;
       --header-bg: #0d171c;
       --header-ink: #ffffff;
       --header-ink-2: rgba(255,255,255,0.68);
@@ -75,6 +79,8 @@
     --baseline: #383835;
     --border: rgba(255,255,255,0.10);
     --brand: #00b0ec;
+    --card-top: #1d2126;
+    --card-bottom: #131e26;
     --header-bg: #0d171c;
     --header-ink: #ffffff;
     --header-ink-2: rgba(255,255,255,0.68);
@@ -111,7 +117,7 @@
     appearance: none; border: 0; background: transparent; color: var(--header-ink-2);
     font: inherit; padding: 7px 13px; border-radius: 7px; cursor: pointer; position: relative;
   }
-  nav.tabs button:hover { background: rgba(255,255,255,0.12); color: var(--header-ink); }
+  nav.tabs button:hover { background: var(--wash-1); color: var(--header-ink); }
   nav.tabs button.active { background: var(--brand); color: #06222e; font-weight: 600; }
   nav.tabs button .pill {
     display: inline-block; min-width: 17px; text-align: center; margin-left: 6px;
@@ -139,9 +145,15 @@
   .grid { display: grid; gap: 16px; }
   .tiles { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 16px; }
   .card {
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    background: linear-gradient(165deg, var(--card-top) 20%, var(--card-bottom) 100%);
+    border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 18px;
   }
+  .tile.span2 {
+    background: linear-gradient(135deg, #00b0ec, #177cab); border: 0;
+  }
+  .tile.span2 .label, .tile.span2 .delta, .tile.span2 .delta .up-bad, .tile.span2 .delta .ok { color: rgba(255,255,255,0.92); }
+  .tile.span2 .value { color: #ffffff; }
   .card h3, section.view h3 { font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif; }
   .card h3 { margin: 0 0 2px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
   .card .sub { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
@@ -255,7 +267,7 @@
   .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
   dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text-primary); max-width: 460px; padding: 20px 22px; }
   dialog::backdrop { background: rgba(0,0,0,0.35); }
-  footer.app { text-align: center; color: rgba(255,255,255,0.6); font-size: 12px; padding: 22px;
+  footer.app { text-align: center; color: var(--muted); font-size: 12px; padding: 22px;
     background: var(--header-bg); border-top: 3px solid var(--brand); margin-top: 40px; }
   @media print { .drop, nav.tabs, .toolbar, .theme-btn { display: none !important; } }
 </style>
