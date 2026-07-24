@@ -547,12 +547,10 @@ function renderOverview() {
       '<button class="btn small" onclick="go(\'audit\')">Review now →</button></div>';
   }
   html += '<div class="grid tiles">' +
-    tile(fy + " tech spend (YTD)", fmt$(ytdTotal), deltaTxt(vsBudget), true) +
+    tile("Total cost per property / mo", fmt$(monthlyRun / props, 2), "all tech ÷ " + props + " properties", true) +
+    tile(fy + " tech spend (YTD)", fmt$(ytdTotal), deltaTxt(vsBudget)) +
     tile("Total yearly tech costs", fmt$(monthlyRun * 12), "annualized from " + monthsElapsed + " months of actuals") +
     tile("Average monthly costs", fmt$(monthlyRun), "avg over " + monthsElapsed + " months") +
-    tile("Per property costs / mo", fmt$(byA.per_property / monthsElapsed / props, 2), "property-scaling tools · " + props + " units") +
-    tile("Per employee costs / mo", fmt$(byA.per_user / monthsElapsed / users, 2), "per-user tools · " + users + " employees") +
-    tile("Company-wide costs / mo", fmt$(byA.company_wide / monthsElapsed), "fixed overhead") +
     tile("Active subscriptions", String(subs.filter(s => s.status === "active").length),
       S.subs.filter(s => s.status === "under_review").length + " under review") +
     "</div>";
