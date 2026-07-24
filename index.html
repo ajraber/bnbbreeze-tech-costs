@@ -11,7 +11,8 @@
   :root {
     color-scheme: light;
     --surface-1: #fcfcfb;
-    --page: #f3f9fc;
+    --page: #17293e;
+    --footer-bg: #101f30;
     --text-primary: #0b0b0b;
     --text-secondary: #52514e;
     --muted: #898781;
@@ -43,7 +44,8 @@
     :root:where(:not([data-theme="light"])) {
       color-scheme: dark;
       --surface-1: #1a1a19;
-      --page: #0d0d0d;
+      --page: #0c1826;
+      --footer-bg: #081220;
       --text-primary: #ffffff;
       --text-secondary: #c3c2b7;
       --muted: #898781;
@@ -71,7 +73,8 @@
   :root[data-theme="dark"] {
     color-scheme: dark;
     --surface-1: #1a1a19;
-    --page: #0d0d0d;
+    --page: #0c1826;
+    --footer-bg: #081220;
     --text-primary: #ffffff;
     --text-secondary: #c3c2b7;
     --muted: #898781;
@@ -95,6 +98,14 @@
     --wash-1: rgba(58,157,201,0.16);
     --accent: #3a9dc9;
   }
+  section.view > h3 { color: #ffffff; }
+  section.view > p.small, section.view > p.small .muted, section.view > p.small.muted { color: rgba(255,255,255,0.75); }
+  section.view > p.small b { color: #ffffff; }
+  .toolbar .muted, .toolbar label { color: rgba(255,255,255,0.78); }
+  section.view .steps, section.view .steps .step { color: rgba(255,255,255,0.75); }
+  section.view .steps .step.on { color: #ffffff; }
+  section.view .steps .n { border-color: rgba(255,255,255,0.45); color: rgba(255,255,255,0.85); }
+  section.view .steps .step.on .n { background: var(--brand); border-color: var(--brand); color: #06222e; }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--page); color: var(--text-primary);
@@ -267,8 +278,8 @@
   .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
   dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text-primary); max-width: 460px; padding: 20px 22px; }
   dialog::backdrop { background: rgba(0,0,0,0.35); }
-  footer.app { text-align: center; color: var(--muted); font-size: 12px; padding: 22px;
-    background: var(--header-bg); border-top: 3px solid var(--brand); margin-top: 40px; }
+  footer.app { text-align: center; color: rgba(255,255,255,0.65); font-size: 12px; padding: 22px;
+    background: var(--footer-bg); border-top: 3px solid var(--brand); margin-top: 40px; }
   @media print { .drop, nav.tabs, .toolbar, .theme-btn { display: none !important; } }
 </style>
 </head>
